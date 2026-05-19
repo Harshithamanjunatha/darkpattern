@@ -1,0 +1,6 @@
+flask
+flask-cors
+pymongo
+pandas
+dnspython
+scikit-learn

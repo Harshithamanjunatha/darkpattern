@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Dark Pattern Detector</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#f0efe9;--surface3:#e8e7e0;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --text:#181816;--text2:#5c5c58;--text3:#9a9a94;
+  --r:10px;--rs:6px;
+  --red:#e24b4a;--red-bg:#fcebeb;--red-t:#791f1f;
+  --amber:#ef9f27;--amber-bg:#faeeda;--amber-t:#633806;
+  --green:#639922;--green-bg:#eaf3de;--green-t:#27500a;
+  --blue:#378add;--blue-bg:#e6f1fb;--blue-t:#0c447c;
+  --purple:#7f77dd;--purple-bg:#eeedfe;--purple-t:#3c3489;
+  --pink:#d4537e;--pink-bg:#fbeaf0;--pink-t:#72243e;
+  --teal:#1d9e75;--teal-bg:#e1f5ee;--teal-t:#085041;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#141412;--surface:#1e1e1b;--surface2:#272724;--surface3:#302f2b;
+  --border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
+  --text:#eeeee8;--text2:#a0a09a;--text3:#606058;
+  --red-bg:#2e0f0f;--red-t:#f7c1c1;--amber-bg:#2e1e05;--amber-t:#fac775;
+  --green-bg:#112009;--green-t:#c0dd97;--blue-bg:#0a1e38;--blue-t:#b5d4f4;
+  --purple-bg:#17163a;--purple-t:#cecbf6;--pink-bg:#280e1d;--pink-t:#f4c0d1;
+  --teal-bg:#072a1e;--teal-t:#9fe1cb;
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--surface);border-right:0.5px solid var(--border);padding:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.logo{padding:18px 16px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:9px}
+.logo-icon{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
+.logo-text{font-size:14px;font-weight:700;line-height:1.2}
+.logo-sub{font-size:11px;color:var(--text3);font-weight:400}
+nav{padding:12px 8px;flex:1}
+.nav-section{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;padding:8px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--rs);cursor:pointer;color:var(--text2);font-size:13px;margin-bottom:1px;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--red-bg);color:var(--red-t);font-weight:500}
+.nav-item i{font-size:16px;flex-shrink:0}
+.sidebar-footer{padding:12px;border-top:0.5px solid var(--border)}
+.main{overflow-y:auto}
+.topbar{background:var(--surface);border-bottom:0.5px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+.topbar-title{font-size:16px;font-weight:600}
+.topbar-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.content{padding:20px 24px}
+.panel{display:none}.panel.active{display:block}
+
+/* ── Components ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:0.5px solid var(--border2);border-radius:var(--rs);background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.btn:hover{background:var(--surface2)}.btn:active{opacity:.85}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn.primary:hover{opacity:.88}
+.btn.danger{background:var(--red-bg);color:var(--red-t);border-color:rgba(226,75,74,.25)}
+.btn.sm{padding:6px 10px;font-size:12px}
+
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.metric{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.metric-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px;font-weight:600}
+.metric-value{font-size:26px;font-weight:700;color:var(--text)}
+.metric-value.red{color:var(--red)}.metric-value.amber{color:var(--amber)}.metric-value.green{color:var(--green)}
+
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
+.card-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);font-weight:700;margin-bottom:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:700px){.grid-2{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.sidebar{display:none}}
+
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;display:inline-block}
+.badge.high{background:var(--red-bg);color:var(--red-t)}
+.badge.medium{background:var(--amber-bg);color:var(--amber-t)}
+.badge.low{background:var(--green-bg);color:var(--green-t)}
+.badge.loop{background:var(--red-bg);color:var(--red-t)}
+.badge.forced{background:var(--amber-bg);color:var(--amber-t)}
+.badge.hidden{background:var(--pink-bg);color:var(--pink-t)}
+.badge.trap{background:var(--purple-bg);color:var(--purple-t)}
+.badge.none{background:var(--green-bg);color:var(--green-t)}
+
+.alert-card{display:flex;gap:10px;padding:13px 14px;border-radius:var(--rs);margin-bottom:10px;align-items:flex-start}
+.alert-card.high{background:var(--red-bg);border:0.5px solid rgba(226,75,74,.2)}
+.alert-card.medium{background:var(--amber-bg);border:0.5px solid rgba(239,159,39,.2)}
+.alert-card.low{background:var(--green-bg);border:0.5px solid rgba(99,153,34,.2)}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.alert-card.high .alert-icon{color:var(--red)}.alert-card.medium .alert-icon{color:var(--amber)}.alert-card.low .alert-icon{color:var(--green)}
+.alert-title{font-size:13px;font-weight:600}
+.alert-card.high .alert-title{color:var(--red-t)}.alert-card.medium .alert-title{color:var(--amber-t)}.alert-card.low .alert-title{color:var(--green-t)}
+.alert-desc{font-size:12px;margin-top:3px;line-height:1.5}
+.alert-card.high .alert-desc{color:var(--red-t)}.alert-card.medium .alert-desc{color:var(--amber-t)}.alert-card.low .alert-desc{color:var(--green-t)}
+
+.path-card{background:var(--surface2);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.path-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.path-node{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.path-node.normal{background:var(--blue-bg);color:var(--blue-t)}
+.path-node.sus{background:var(--red-bg);color:var(--red-t)}
+.path-node.forced{background:var(--amber-bg);color:var(--amber-t)}
+.path-node.trap{background:var(--purple-bg);color:var(--purple-t)}
+.path-arrow{color:var(--text3);font-size:11px}
+
+select,input{background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:13px;padding:7px 10px;cursor:pointer}
+.ctrl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.ctrl-label{font-size:12px;color:var(--text2)}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;color:var(--text2);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:0.5px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--surface2)}
+.tbl-wrap{overflow-x:auto;border:0.5px solid var(--border);border-radius:var(--r)}
+
+.score-wrap{display:flex;align-items:center;gap:20px}
+.score-num{font-size:38px;font-weight:800}
+.score-lbl{font-size:14px;font-weight:600;margin-top:2px}
+.score-desc{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;max-width:200px}
+
+.ingest-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:12px;color:var(--text2);font-weight:600}
+.form-input{padding:9px 12px;font-size:13px;border-radius:var(--rs);border:0.5px solid var(--border2);background:var(--surface);color:var(--text);font-family:inherit}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:var(--bg);padding:10px 16px;border-radius:var(--r);font-size:13px;z-index:100;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.toast.show{display:flex}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;padding:20px}
+.empty{padding:32px;text-align:center;color:var(--text3);font-size:13px}
+.legend-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+.flow-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border)}
+.flow-row:last-child{border-bottom:none}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-shield-exclamation" aria-hidden="true"></i></div>
+      <div><div class="logo-text">DarkPatternDB</div><div class="logo-sub">Web Usage Mining</div></div>
+    </div>
+    <nav>
+      <div class="nav-section">Analysis</div>
+      <button class="nav-item active" onclick="navigate('overview',this)"><i class="ti ti-dashboard" aria-hidden="true"></i>Overview</button>
+      <button class="nav-item" onclick="navigate('alerts',this)"><i class="ti ti-bell" aria-hidden="true"></i>Alerts <span id="alertBadge" style="margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;"></span></button>
+      <button class="nav-item" onclick="navigate('sessions',this)"><i class="ti ti-users" aria-hidden="true"></i>Sessions</button>
+      <button class="nav-item" onclick="navigate('charts',this)"><i class="ti ti-chart-bar" aria-hidden="true"></i>Charts</button>
+      <div class="nav-section">Data</div>
+      <button class="nav-item" onclick="navigate('rawdata',this)"><i class="ti ti-table" aria-hidden="true"></i>Raw clickstream</button>
+      <button class="nav-item" onclick="navigate('ingest',this)"><i class="ti ti-upload" aria-hidden="true"></i>Ingest event</button>
+      <div class="nav-section">Info</div>
+      <button class="nav-item" onclick="navigate('api',this)"><i class="ti ti-api" aria-hidden="true"></i>API reference</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">
+        <div class="status-dot"></div>
+        <span id="healthStatus">Connecting...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="pageTitle">Overview</div>
+        <div class="topbar-sub" id="pageSub">Loading...</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn sm" onclick="exportCSV()"><i class="ti ti-download" aria-hidden="true"></i>Export CSV</button>
+        <button class="btn primary sm" onclick="regenerate()"><i class="ti ti-refresh" aria-hidden="true"></i>Regenerate data</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- OVERVIEW -->
+      <div id="panel-overview" class="panel active">
+        <div class="metric-grid" id="metrics"><div class="loading"><div class="spinner"></div>Loading metrics...</div></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Ethical score</div>
+            <div class="score-wrap">
+              <canvas id="scoreDonut" width="110" height="110" role="img" aria-label="Ethical score gauge"></canvas>
+              <div><div class="score-num" id="scoreNum">—</div><div class="score-lbl" id="scoreLbl"></div><div class="score-desc" id="scoreDesc"></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Pattern distribution</div>
+            <div style="position:relative;height:180px"><canvas id="patternPie" role="img" aria-label="Pattern distribution"></canvas></div>
+            <div class="legend-row" id="pieLegend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Top suspicious flows</div>
+          <div id="topFlows"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- ALERTS -->
+      <div id="panel-alerts" class="panel">
+        <div id="alertList"><div class="loading"><div class="spinner"></div>Loading alerts...</div></div>
+      </div>
+
+      <!-- SESSIONS -->
+      <div id="panel-sessions" class="panel">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Filter:</span>
+          <select id="sessFilter" onchange="loadSessions()">
+            <option value="all">All patterns</option>
+            <option value="loop">Confirmation loop</option>
+            <option value="forced">Forced action</option>
+            <option value="hidden">Hidden opt-out</option>
+            <option value="trap">Subscription trap</option>
+            <option value="none">Clean sessions</option>
+          </select>
+          <input
+    type="text"
+    id="userSearch"
+    placeholder="Search User ID"
+    class="form-input"
+    oninput="loadSessions()"
+    style="width:220px"
+>
+          <span class="ctrl-label">Show:</span>
+          <select id="sessLimit" onchange="loadSessions()">
+            <option value="20">20</option><option value="40">40</option><option value="80">80</option>
+          </select>
+        </div>
+        <div id="sessionList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+
+      <!-- CHARTS -->
+      <div id="panel-charts" class="panel">
+        <div class="card">
+          <div class="card-title">Clicks to reject offer — distribution</div>
+          <div style="position:relative;height:250px"><canvas id="clickDistChart" role="img" aria-label="Click distribution"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Page visit frequency</div>
+          <div style="position:relative;height:280px"><canvas id="pageVisitChart" role="img" aria-label="Page visits"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Session length vs dark pattern score</div>
+          <div style="position:relative;height:280px"><canvas id="scatterChart" role="img" aria-label="Scatter plot"></canvas></div>
+          <div class="legend-row" id="scatterLegend"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Action type frequency</div>
+          <div style="position:relative;height:220px"><canvas id="actionChart" role="img" aria-label="Action types"></canvas></div>
+        </div>
+      </div>
+
+      <!-- RAW DATA -->
+      <div id="panel-rawdata" class="panel">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Rows:</span>
+          <select id="rawLimit" onchange="loadRaw()"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select>
+          <span class="ctrl-label">Pattern:</span>
+          <select id="rawFilter" onchange="loadRaw()">
+            <option value="all">All</option><option value="loop">Loop</option><option value="forced">Forced</option>
+            <option value="hidden">Hidden</option><option value="trap">Trap</option><option value="none">Clean</option>
+          </select>
+          <button class="btn sm" onclick="exportCSV()"><i class="ti ti-download"></i>Export</button>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>UserID</th><th>Session</th><th>Page</th><th>Action</th><th>Time</th><th>Timestamp</th><th>Pattern</th></tr></thead>
+          <tbody id="rawBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table>
+        </div>
+        <div id="rawTotal" style="font-size:12px;color:var(--text2);margin-top:8px;"></div>
+      </div>
+
+      <!-- INGEST -->
+      <div id="panel-ingest" class="panel">
+
+  <!-- DATASET UPLOAD -->
+
+  <div class="card" style="max-width:600px;margin-bottom:14px">
+
+    <div class="card-title">
+      Upload Dataset
+    </div>
+
+    <p style="
+        font-size:13px;
+        color:var(--text2);
+        margin-bottom:16px;
+        line-height:1.6
+    ">
+      Upload a CSV dataset for preprocessing,
+      clickstream analysis, and machine learning prediction.
+    </p>
+
+    <div>
+      <input
+          type="file"
+          id="datasetFile"
+          name="dataset"
+          accept=".csv"
+          class="form-input"
+      >
+
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;margin-top:12px">
+        <label class="form-label" style="margin-bottom:0">Mode:</label>
+        <label style="font-size:13px;color:var(--text);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="radio" name="uploadMode" value="replace" checked> Replace existing data
+        </label>
+        <label style="font-size:13px;color:var(--text);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="radio" name="uploadMode" value="merge"> Merge with existing
+        </label>
+      </div>
+
+      <button
+          class="btn primary"
+          style="margin-top:14px"
+          onclick="uploadDataset()"
+          id="uploadBtn"
+      >
+          <i class="ti ti-upload"></i>
+          Upload Dataset
+      </button>
+
+      <div id="uploadResult" style="margin-top:10px;font-size:13px"></div>
+    </div>
+
+  </div>
+
+  <!-- MANUAL EVENT SUBMISSION -->
+
+  <div class="card" style="max-width:600px">
+
+    <div class="card-title">
+      Submit a clickstream event
+    </div>
+
+    <p style="
+        font-size:13px;
+        color:var(--text2);
+        margin-bottom:16px;
+        line-height:1.6
+    ">
+      Use this form to manually submit a real user event
+      to the database, or use the API endpoint
+      <code style="
+          background:var(--surface2);
+          padding:2px 6px;
+          border-radius:4px;
+          font-size:12px
+      ">
+        POST /api/ingest
+      </code>
+      from your website's JS tracker.
+    </p>
+
+    <div class="ingest-form">
+
+      <div class="form-group">
+        <label class="form-label">
+          User ID
+        </label>
+
+        <input
+            class="form-input"
+            id="f_uid"
+            placeholder="e.g. U0001"
+            value="U9999"
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Session ID
+        </label>
+
+        <input
+            class="form-input"
+            id="f_sid"
+            placeholder="e.g. S000001"
+            value="S999999"
+        >
+      </div>
+
+      <div class="form-group">
+
+        <label class="form-label">
+          Page
+        </label>
+
+        <select class="form-input" id="f_page">
+
+          <option>Home</option>
+          <option>Product</option>
+          <option>Cart</option>
+          <option>Insurance popup</option>
+          <option>Payment</option>
+          <option>Cancel flow</option>
+          <option>Confirmation</option>
+          <option>Subscription trap</option>
+          <option>Hidden opt-out</option>
+          <option>Login</option>
+
+        </select>
+
+      </div>
+
+      <div class="form-group">
+
+        <label class="form-label">
+          Action
+        </label>
+
+        <select class="form-input" id="f_action">
+
+          <option>click</option>
+          <option>scroll</option>
+          <option>hover</option>
+          <option>submit</option>
+          <option>close</option>
+          <option>back</option>
+          <option>accept</option>
+          <option>decline</option>
+
+        </select>
+
+      </div>
+
+      <div class="form-group">
+
+        <label class="form-label">
+          Time spent (seconds)
+        </label>
+
+        <input
+            class="form-input"
+            id="f_time"
+            type="number"
+            value="5"
+            min="1"
+            max="600"
+        >
+
+      </div>
+
+    </div>
+
+    <button
+        class="btn primary"
+        style="margin-top:14px"
+        onclick="ingestEvent()"
+    >
+
+      <i class="ti ti-send"></i>
+
+      Submit event
+
+    </button>
+
+    <div
+        id="ingestResult"
+        style="
+            margin-top:12px;
+            font-size:13px;
+        "
+    ></div>
+
+  </div>
+
+  <!-- JS TRACKER -->
+
+  <div class="card" style="max-width:600px;margin-top:14px">
+
+    <div class="card-title">
+      JS tracker snippet
+    </div>
+
+    <p style="
+        font-size:12px;
+        color:var(--text2);
+        margin-bottom:12px
+    ">
+      Drop this into your website to track real user events:
+    </p>
+
+<pre style="
+background:var(--surface2);
+padding:14px;
+border-radius:var(--rs);
+font-size:12px;
+overflow-x:auto;
+line-height:1.6;
+color:var(--text)
+">async function trackEvent(page, action, timeSpent) {
+
+  await fetch('http://localhost:5000/api/ingest', {
+
+    method: 'POST',
+
+    headers: {
+      'Content-Type': 'application/json'
+    },
+
+    body: JSON.stringify({
+
+      user_id:
+        localStorage.getItem('uid') || 'guest',
+
+      session_id:
+        sessionStorage.getItem('sid') || Date.now(),
+
+      page,
+      action,
+      time_spent: timeSpent
+    })
+  });
+}
+</div>
+      
+</div>
+
+      <!-- API REFERENCE -->
+      <div id="panel-api" class="panel">
+        <div class="card">
+          <div class="card-title">REST API reference</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Base URL: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">http://localhost:5000</code></p>
+          <div id="apiDocs"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check" aria-hidden="true"></i><span id="toastMsg"></span></div>
+
+<script>
+const API = window.location.origin;
+let charts = {}, rawData = [];
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function navigate(id, el) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+  const titles = {overview:'Overview',alerts:'Alerts',sessions:'User sessions',charts:'Charts & analysis',rawdata:'Raw clickstream data',ingest:'Ingest event',api:'API reference'};
+  document.getElementById('pageTitle').textContent = titles[id] || id;
+  if(id==='overview') loadOverview();
+  if(id==='alerts') loadAlerts();
+  if(id==='sessions') loadSessions();
+  if(id==='charts') loadCharts();
+  if(id==='rawdata') loadRaw();
+  if(id==='api') renderApiDocs();
+}
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+async function api(path) {
+  const r = await fetch(API+path);
+  return r.json();
+}
+
+// ── Overview ────────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const s = await api('/api/stats');
+  document.getElementById('pageSub').textContent = `${s.total_sessions} sessions · ${s.total_events.toLocaleString()} events`;
+
+  const sc = s.ethical_score;
+  const col = sc<50?'#e24b4a':sc<70?'#ef9f27':'#639922';
+  document.getElementById('metrics').innerHTML = [
+    {l:'Total sessions',v:s.total_sessions,c:''},
+    {l:'Suspicious',v:s.suspicious_sessions,c:'amber'},
+    {l:'High alerts',v:s.high_alerts,c:s.high_alerts>1?'red':'amber'},
+    {l:'Avg reject clicks',v:s.avg_clicks_to_reject,c:s.avg_clicks_to_reject>4?'red':s.avg_clicks_to_reject>2?'amber':'green'},
+    {l:'Ethical score',v:sc+'/100',c:sc<50?'red':sc<70?'amber':'green'},
+    {l:'Total events',v:s.total_events.toLocaleString(),c:''},
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.l}</div><div class="metric-value ${m.c}">${m.v}</div></div>`).join('');
+
+  // Score donut
+  const bgcol = sc<50?'#faeeda':sc<70?'#faeeda':'#eaf3de';
+  if(charts.donut) charts.donut.destroy();
+  charts.donut = new Chart(document.getElementById('scoreDonut'),{type:'doughnut',data:{labels:['Score','Remaining'],datasets:[{data:[sc,100-sc],backgroundColor:[col,bgcol],borderWidth:0}]},options:{responsive:false,cutout:'76%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});
+  document.getElementById('scoreNum').textContent = sc+'/100';
+  document.getElementById('scoreNum').style.color = col;
+  document.getElementById('scoreLbl').textContent = sc<50?'Highly manipulative':sc<70?'Moderately manipulative':'Mostly ethical';
+  document.getElementById('scoreLbl').style.color = col;
+  document.getElementById('scoreDesc').textContent = sc<50?'Multiple high-severity dark patterns detected. Redesign recommended.':sc<70?'Some manipulative flows found. Needs improvement.':'Minor issues only. Site is largely user-friendly.';
+
+  // Pattern pie
+  const pd = s.pattern_distribution;
+  const labels=['Confirm loop','Forced action','Hidden opt-out','Sub trap','Clean'];
+  const keys=['loop','forced','hidden','trap','none'];
+  const colors=['#e24b4a','#ef9f27','#d4537e','#7f77dd','#639922'];
+  const vals = keys.map(k=>pd[k]||0);
+  if(charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(document.getElementById('patternPie'),{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:colors,borderWidth:2,borderColor:'rgba(255,255,255,0.6)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed+' users'}}}}});
+  document.getElementById('pieLegend').innerHTML = labels.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px"><span class="legend-dot" style="background:${colors[i]}"></span>${l}: ${vals[i]}</span>`).join('');
+
+  // Top flows
+  const flows = await api('/api/charts/top_flows');
+  const flowNames = {loop:'Cancel → Are you sure? → Continue subscription → Cancel again',forced:'Insurance popup → Mandatory accept → Payment page',hidden:'Hidden opt-out below fold (low contrast button)',trap:'Subscription trap (no consent trigger)'};
+  const flowSev = {loop:'high',forced:'high',hidden:'medium',trap:'medium'};
+  document.getElementById('topFlows').innerHTML = flows.length ? flows.map(f=>`
+    <div class="flow-row">
+      <div style="flex:1;font-size:13px;color:var(--text)">${flowNames[f.pattern]||f.pattern}</div>
+      <div style="font-size:12px;color:var(--text2);min-width:120px;text-align:right">${f.avg_clicks} clicks avg · ${f.users} users</div>
+      <span class="badge ${flowSev[f.pattern]||'low'}" style="margin-left:8px">${flowSev[f.pattern]||'low'}</span>
+    </div>
+  `).join('') : '<div class="empty">No suspicious flows found</div>';
+
+  document.getElementById('alertBadge').textContent = s.high_alerts||'';
+}
+
+// ── Alerts ──────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const alerts = await api('/api/alerts');
+  document.getElementById('alertList').innerHTML = alerts.length ? alerts.map(a=>`
+    <div class="alert-card ${a.severity}">
+      <i class="ti ${a.icon} alert-icon" aria-hidden="true"></i>
+      <div><div class="alert-title">${a.title}</div><div class="alert-desc">${a.desc}</div></div>
+    </div>
+  `).join('') : '<div class="empty">No alerts</div>';
+}
+
+// ── Sessions ─────────────────────────────────────────────────────────────────
+async function loadSessions() {
+const userId =
+document.getElementById(
+    'userSearch'
+).value;
+  const filter = document.getElementById('sessFilter').value;
+  const limit = document.getElementById('sessLimit').value;
+  document.getElementById('sessionList').innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+  const data = await api(
+  `/api/sessions?pattern=${filter}&limit=${limit}&user_id=${userId}`
+);
+  const suspPages = ['Insurance popup','Subscription trap'];
+  const sus2 = ['Cancel flow','Hidden opt-out'];
+  const trapPages = ['Subscription trap'];
+  document.getElementById('sessionList').innerHTML = data.sessions.length ? data.sessions.map(s=>`
+    
+    <div class="path-card">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${s.user_id}</span>
+        <span style="font-size:11px;color:var(--text3)">${s.session_id}</span>
+        <span class="badge ${s.pattern}">${s.pattern==='none'?'clean':s.pattern}</span>
+        <span style="font-size:12px;color:var(--text2);margin-left:auto">DP: ${s.dp_score} · ${s.clicks_to_reject} clicks to reject · ${s.session_length} events</span>
+      </div>
+      <div class="path-row">
+        ${s.path.map((p,i)=>`
+          <span class="path-node ${suspPages.includes(p)?'forced':sus2.includes(p)?'sus':trapPages.includes(p)?'trap':'normal'}">${p}</span>
+          ${i<s.path.length-1?'<span class="path-arrow">→</span>':''}
+        `).join('')}
+      </div>
+    </div>
+  `).join('') : '<div class="empty">No sessions found</div>';
+}
+
+// ── Charts ──────────────────────────────────────────────────────────────────
+async function loadCharts() {
+  const [clicks, pages, scatter, actions] = await Promise.all([
+    api('/api/charts/clicks_distribution'),
+    api('/api/charts/page_visits'),
+    api('/api/charts/scatter'),
+    api('/api/charts/action_types')
+  ]);
+
+  if(charts.click) charts.click.destroy();
+  charts.click = new Chart(document.getElementById('clickDistChart'),{type:'bar',
+    data:{labels:clicks.map(d=>d.clicks),datasets:[{label:'Users',data:clicks.map(d=>d.users),
+      backgroundColor:clicks.map(d=>d.clicks>=6?'#e24b4a':d.clicks>=4?'#ef9f27':'#639922'),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},title:{display:true,text:'Clicks required to reject',font:{size:11}}},
+              y:{grid:{color:'rgba(128,128,128,0.1)'},title:{display:true,text:'Users',font:{size:11}}}}}});
+
+  const pgH = Math.max(220, pages.length*34+60);
+  document.getElementById('pageVisitChart').parentElement.style.height = pgH+'px';
+  if(charts.page) charts.page.destroy();
+  charts.page = new Chart(document.getElementById('pageVisitChart'),{type:'bar',
+    data:{labels:pages.map(d=>d.page),datasets:[{label:'Visits',data:pages.map(d=>d.visits),backgroundColor:'#378add',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(128,128,128,0.1)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+
+  const patConf={loop:{c:'rgba(226,75,74,.65)',l:'Confirm loop'},forced:{c:'rgba(239,159,39,.65)',l:'Forced action'},
+    hidden:{c:'rgba(212,83,126,.65)',l:'Hidden opt-out'},trap:{c:'rgba(127,119,221,.65)',l:'Sub trap'},none:{c:'rgba(99,153,34,.65)',l:'Clean'}};
+  const byPat = {};
+  scatter.forEach(d=>{ (byPat[d.pattern]=byPat[d.pattern]||[]).push({x:d.session_length,y:d.dp_score}); });
+  if(charts.scatter) charts.scatter.destroy();
+  charts.scatter = new Chart(document.getElementById('scatterChart'),{type:'scatter',
+    data:{datasets:Object.entries(patConf).map(([k,v])=>({label:v.l,data:byPat[k]||[],backgroundColor:v.c,pointRadius:5}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'Session length (events)',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'},min:0},
+              y:{title:{display:true,text:'Dark pattern score',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'},min:0,max:105}}}});
+  document.getElementById('scatterLegend').innerHTML = Object.values(patConf).map(v=>`<span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:${v.c};border-radius:50%"></span>${v.l}</span>`).join('');
+
+  if(charts.action) charts.action.destroy();
+  charts.action = new Chart(document.getElementById('actionChart'),{type:'bar',
+    data:{labels:actions.map(d=>d.action),datasets:[{label:'Count',data:actions.map(d=>d.count),
+      backgroundColor:['#7f77dd','#378add','#639922','#ef9f27','#d4537e','#e24b4a','#1d9e75','#888780'],borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(128,128,128,0.1)'}}}}});
+}
+
+// ── Raw data ─────────────────────────────────────────────────────────────────
+async function loadRaw() {
+  const limit = document.getElementById('rawLimit').value;
+  const filter = document.getElementById('rawFilter').value;
+  document.getElementById('rawBody').innerHTML = '<tr><td colspan="7" class="empty">Loading...</td></tr>';
+  const data = await api(`/api/clickstream?limit=${limit}&pattern=${filter}`);
+  rawData = data.events;
+  document.getElementById('rawBody').innerHTML = rawData.map(d=>`<tr>
+    <td style="font-weight:600">${d.user_id}</td>
+    <td style="color:var(--text2)">${d.session_id}</td>
+    <td>${d.page}</td><td>${d.action}</td>
+    <td>${d.time_spent}s</td>
+    <td style="color:var(--text2);font-size:11px">${d.timestamp?.substring(0,19)||'—'}</td>
+    <td>${d.pattern&&d.pattern!=='none'?`<span class="badge ${d.pattern}">${d.pattern}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+  </tr>`).join('');
+  document.getElementById('rawTotal').textContent = `Showing ${rawData.length} of ${data.total.toLocaleString()} total events`;
+}
+
+// ── Ingest ───────────────────────────────────────────────────────────────────
+async function ingestEvent() {
+  const payload = {user_id:document.getElementById('f_uid').value,session_id:document.getElementById('f_sid').value,page:document.getElementById('f_page').value,action:document.getElementById('f_action').value,time_spent:parseInt(document.getElementById('f_time').value)||5};
+  const r = await fetch(API+'/api/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  const el = document.getElementById('ingestResult');
+  if(r.ok){
+    el.innerHTML = `<span style="color:var(--green)"><i class="ti ti-check"></i> Event recorded — visible in Raw Clickstream tab</span>`;
+    showToast('Event ingested to database');
+    // Refresh raw data table so the new event appears immediately
+    loadRaw();
+  } else {
+    el.innerHTML = `<span style="color:var(--red)">Error: ${d.error||'Unknown error'}</span>`;
+  }
+}
+
+async function uploadDataset() {
+  const fileInput = document.getElementById('datasetFile');
+  const resultEl = document.getElementById('uploadResult');
+  const btn = document.getElementById('uploadBtn');
+  if(!fileInput.files.length){ resultEl.innerHTML='<span style="color:var(--red)">Please select a CSV file first.</span>'; return; }
+  const merge = document.querySelector('input[name="uploadMode"]:checked').value === 'merge';
+  const fd = new FormData();
+  fd.append('dataset', fileInput.files[0]);
+  fd.append('merge', merge ? 'true' : 'false');
+  btn.disabled = true;
+  resultEl.innerHTML = '<span style="color:var(--text2)"><i class="ti ti-loader"></i> Uploading and processing…</span>';
+  try {
+    const r = await fetch('/upload', {method:'POST', body: fd});
+    const d = await r.json();
+    if(r.ok){
+      resultEl.innerHTML = `<span style="color:var(--green)"><i class="ti ti-check"></i> ${d.message} (${d.rows} rows, mode: ${d.mode})</span>`;
+      showToast('Dataset uploaded successfully');
+      loadOverview();
+      loadRaw();
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--red)"><i class="ti ti-x"></i> ${d.error}</span>`;
+    }
+  } catch(e){
+    resultEl.innerHTML = `<span style="color:var(--red)">Upload failed: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Regenerate ───────────────────────────────────────────────────────────────
+async function regenerate() {
+  showToast('Regenerating 500 synthetic users...');
+  await fetch(API+'/api/regenerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_users:500})});
+  showToast('Done! Data regenerated.');
+  loadOverview();
+}
+
+// ── Export ───────────────────────────────────────────────────────────────────
+async function exportCSV() {
+  const data = await api('/api/clickstream?limit=5000');
+  const cols = ['user_id','session_id','page','action','time_spent','timestamp','pattern'];
+  const rows = data.events.map(d=>cols.map(c=>`"${d[c]||''}"`).join(','));
+  const csv = [cols.join(','),...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'clickstream_export.csv';
+  a.click();
+  showToast('CSV exported');
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  document.getElementById('toastMsg').textContent = msg;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── API docs ─────────────────────────────────────────────────────────────────
+function renderApiDocs() {
+  const routes = [
+    {method:'GET',path:'/api/stats',desc:'Overall stats, ethical score, pattern distribution'},
+    {method:'GET',path:'/api/alerts',desc:'All dark pattern alerts with severity'},
+    {method:'GET',path:'/api/sessions?pattern=all&limit=50&offset=0',desc:'Paginated session list with path and scores'},
+    {method:'GET',path:'/api/clickstream?limit=100&pattern=all',desc:'Raw clickstream events, joinable with sessions'},
+    {method:'GET',path:'/api/charts/clicks_distribution',desc:'Distribution of clicks needed to reject offers'},
+    {method:'GET',path:'/api/charts/page_visits',desc:'Visit count per page across all sessions'},
+    {method:'GET',path:'/api/charts/action_types',desc:'Frequency of each user action type'},
+    {method:'GET',path:'/api/charts/scatter',desc:'Session length + dp_score per user for scatter plot'},
+    {method:'GET',path:'/api/charts/top_flows',desc:'Top suspicious flows with avg click counts'},
+    {method:'POST',path:'/api/ingest',desc:'Ingest a real clickstream event {user_id, session_id, page, action, time_spent}'},
+    {method:'POST',path:'/api/regenerate',desc:'Re-seed the database with synthetic data {n_users: 500}'},
+    {method:'GET',path:'/api/health',desc:'Health check and DB status'},
+  ];
+  const mc={GET:'var(--green-t)',POST:'var(--blue-t)'};
+  const mb={GET:'var(--green-bg)',POST:'var(--blue-bg)'};
+  document.getElementById('apiDocs').innerHTML = routes.map(r=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;background:${mb[r.method]};color:${mc[r.method]};min-width:44px;text-align:center;flex-shrink:0">${r.method}</span>
+      <code style="font-size:12px;color:var(--text);flex:1;background:var(--surface2);padding:4px 8px;border-radius:4px">${r.path}</code>
+      <span style="font-size:12px;color:var(--text2);max-width:260px;line-height:1.5">${r.desc}</span>
+    </div>
+  `).join('');
+}
+
+// ── Health check ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const h = await api('/api/health');
+    document.getElementById('healthStatus').textContent = `DB: ${h.sessions} sessions`;
+  } catch {
+    document.getElementById('healthStatus').textContent = 'Backend offline';
+    document.getElementById('healthStatus').style.color = 'var(--red)';
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+checkHealth();
+loadOverview();
+</script>
+</body>
+</html>

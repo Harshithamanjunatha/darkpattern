@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>DarkPatternDB</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial, sans-serif;
+    background:#0f172a;
+    color:white;
+}
+
+.container{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:20px;
+}
+
+h1{
+    font-size:70px;
+    margin-bottom:20px;
+    color:#ef4444;
+}
+
+p{
+    font-size:22px;
+    max-width:800px;
+    line-height:1.7;
+    color:#d1d5db;
+}
+
+.buttons{
+    margin-top:40px;
+    display:flex;
+    gap:20px;
+}
+
+.btn{
+    padding:15px 35px;
+    border:none;
+    border-radius:10px;
+    font-size:18px;
+    cursor:pointer;
+    text-decoration:none;
+    transition:0.3s;
+}
+
+.register{
+    background:#ef4444;
+    color:white;
+}
+
+.login{
+    background:#1e293b;
+    color:white;
+    border:1px solid #334155;
+}
+
+.btn:hover{
+    transform:translateY(-3px);
+}
+
+.features{
+    margin-top:60px;
+    display:flex;
+    gap:25px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+
+.card{
+    background:#1e293b;
+    padding:25px;
+    border-radius:15px;
+    width:280px;
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+}
+
+.card h3{
+    margin-bottom:15px;
+    color:#ef4444;
+}
+
+.card p{
+    font-size:16px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>DarkPatternDB</h1>
+
+    <p>
+        AI-powered Web Usage Mining platform for detecting
+        suspicious and manipulative website navigation patterns
+        using Clickstream Analysis and Machine Learning.
+    </p>
+
+    <div class="buttons">
+
+        <a href="/register" class="btn register">
+            Register Company
+        </a>
+
+        <a href="/login" class="btn login">
+            Login
+        </a>
+
+    </div>
+
+    <div class="features">
+
+        <div class="card">
+            <h3>Clickstream Analysis</h3>
+            <p>
+                Analyze user navigation patterns
+                and browsing behavior in real-time.
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Dark Pattern Detection</h3>
+            <p>
+                Detect forced flows, hidden options,
+                loops, and suspicious UX behavior.
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Machine Learning</h3>
+            <p>
+                Decision Tree Classification is used
+                for suspicious session prediction.
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
